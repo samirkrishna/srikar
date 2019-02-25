@@ -1,10 +1,15 @@
 package sam.has.parking;
 
 import android.Manifest;
+import android.app.Dialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
 import android.location.LocationListener;
+import android.location.LocationManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -13,7 +18,11 @@ import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -37,11 +46,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private DatabaseReference mUsers;
     Marker marker;
 
+    Dialog myDialog;
 
     private Location lastlocation;
     public static final int REQUEST_LOCATION_CODE = 99;
     int PROXIMITY_RADIUS = 10000;
     double latitude,longitude;
+    LocationManager locationManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +66,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ChildEventListener mChildEventListener;
         mUsers = FirebaseDatabase.getInstance().getReference("Users");
         mUsers.push().setValue(marker);
+
+        locationManager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,400,1000,this);
+
+        myDialog=new Dialog(this);
 
     }
 
@@ -79,7 +95,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 for (DataSnapshot s : dataSnapshot.getChildren()) {
                     UserInformation userInformation = s.getValue(UserInformation.class);
                     LatLng location = new LatLng(userInformation.lati, userInformation.longi);
-                    mMap.addMarker(new MarkerOptions().position(location).title(userInformation.name)).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+                    mMap.addMarker(new MarkerOptions().position(location).title(userInformation.name)).setIcon(BitmapDescriptorFactory.fromResource(R.drawable.markergg));
                 }
             }
 
@@ -93,7 +109,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public boolean onMarkerClick(Marker marker) {
                 //Snackbar.make((View) findViewById(R.id.map), "Click here to book the slot" , Snackbar.LENGTH_LONG).show();
-               /* Snackbar.make(findViewById(R.id.map),"Click here to book a slot", Snackbar.LENGTH_LONG)
+              /* Snackbar.make(findViewById(R.id.map),"Click here to book a slot", Snackbar.LENGTH_LONG)
                         .setAction("Book Now", new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
@@ -101,6 +117,43 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 startActivity(i);
                             }
                         }).show();*/
+
+                TextView tclose;
+                Button button;
+                myDialog.setContentView(R.layout.dialogbox);
+                tclose = (TextView)myDialog.findViewById(R.id.close);
+                button = (Button)myDialog.findViewById(R.id.bt1);
+                tclose.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        myDialog.dismiss();
+                    }
+                });
+                button.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        mUsers = FirebaseDatabase.getInstance().getReference().child("Users").child("-LZO3d6BvUexYDb8PqGm");
+                        mUsers.addValueEventListener(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                TextView tv1;
+                                tv1 = (TextView)myDialog.findViewById(R.id.pid);
+                                String name1 = dataSnapshot.child("name").getValue().toString();
+                                tv1.setText("samir krishna");
+
+                                Toast.makeText(MapsActivity.this,name1,Toast.LENGTH_SHORT).show();
+                            }
+
+                            @Override
+                            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                            }
+                        });
+
+                    }
+                });
+                myDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                myDialog.show();
 
                 return true;
             }
@@ -118,6 +171,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         Log.d("lat = ",""+latitude);
         LatLng latLng = new LatLng(location.getLatitude() , location.getLongitude());
+
+        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng,10);
+        mMap.animateCamera(cameraUpdate);
+        locationManager.removeUpdates(this);
+
         MarkerOptions markerOptions = new MarkerOptions();
         markerOptions.position(latLng);
         markerOptions.title("Current Location");
@@ -125,6 +183,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         marker = mMap.addMarker(markerOptions);
         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
         mMap.animateCamera(CameraUpdateFactory.zoomBy(10));
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(latitude,longitude),16f));
 
     }
 
